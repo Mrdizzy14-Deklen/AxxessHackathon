@@ -30,14 +30,32 @@ thirst = 50  # Starts at 50, max 100
 thirst_increase_rate = 1  # How fast thirst increases
 last_thirst_update = time.time()
 
+# Backend data
+boot_day = datetime.datetime.now(datetime.timezone.utc).date()
+last_boot = None
+
+running = True
+
 def water_tree(amount=10):
     """Waters the tree 'int amount'"""
     global thirst
     thirst = max(0, thirst - amount)
     print(f"Tree watered, thirst: {thirst}")
 
-def thirst_tree(amount=10):
+def thirst_tree(days=1):
+    print("days: ", days)
     pass
+
+def get_thirst():
+    global boot_day, last_boot
+    if last_boot:
+        thirst_tree(get_day(boot_day) - get_day(last_boot))
+    
+def get_day(date=None):
+    if date:
+        return datetime.datetime.strptime(str(date), "%Y-%m-%d").day
+    else:
+        return None
 
 def save_game():
     
@@ -70,15 +88,28 @@ def load_game():
             reader = csv.reader(file)
             next(reader)  # Skip header
             tree_data = next(reader)
-            global thirst 
+            global thirst, last_boot
             thirst = int(tree_data[0])
+            last_boot = tree_data[1]
+            print(last_boot)
         print("Game loaded:", tree_data)
     else:
         save_game()
 
-load_game()
-print(thirst)
-running = True
+def exit_game():
+
+    global running
+    save_game()
+    running = False
+
+def on_start():
+    """Does all functions required on startup"""
+
+    load_game()
+    get_thirst()
+
+on_start()
+
 while running:
 
     screen.fill(WHITE)
@@ -89,13 +120,11 @@ while running:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 print("Spacebar pressed")
-                save_game()
             if event.key == pygame.K_ESCAPE:
-                save_game()
-                running = False
+                exit_game()
                 
         if event.type == pygame.QUIT:
-            running = False
+            exit_game()
 
     # Increase thirst over time
     if time.time() - last_thirst_update > 1:
@@ -104,11 +133,11 @@ while running:
         last_thirst_update = time.time()
 
     # Draw tree
-    screen.blit(tree_image, (w/2 - 350, h/2 - 200))
+    screen.blit(tree_image, (w/2 - w/6, h/2))
 
     # Draw thirst bar
-    pygame.draw.rect(screen, RED, (50, 350, 500, 20))
-    pygame.draw.rect(screen, BLUE, (50, 350, 500 * (1 - thirst/100), 20))
+    pygame.draw.rect(screen, RED, (w/2 - 250, 350, 500, 20))
+    pygame.draw.rect(screen, BLUE, (w/2 - 250, 350, 500 * (1 - thirst/100), 20))
 
     pygame.display.update()
     pygame.time.delay(100)
