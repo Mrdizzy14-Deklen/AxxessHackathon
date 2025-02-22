@@ -26,7 +26,7 @@ tree_image = pygame.image.load(os.path.join(game_folder, "tree.png"))
 tree_image = pygame.transform.scale(tree_image, (WIDTH/3, HEIGHT/3))
 
 # Tree properties
-thirst = 50  # Starts at 50, max 100
+thirst = 50
 thirst_increase_rate = 1  # How fast thirst increases
 last_thirst_update = time.time()
 
@@ -43,6 +43,8 @@ def water_tree(amount=10):
     print(f"Tree watered, thirst: {thirst}")
 
 def thirst_tree(days=1):
+    global thirst
+    thirst += days * days
     print("days: ", days)
     pass
 
@@ -91,7 +93,6 @@ def load_game():
             global thirst, last_boot
             thirst = int(tree_data[0])
             last_boot = tree_data[1]
-            print(last_boot)
         print("Game loaded:", tree_data)
     else:
         save_game()
