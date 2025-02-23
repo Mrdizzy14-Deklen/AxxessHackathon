@@ -203,5 +203,6 @@ with open(todays_file, "w", newline="") as file:
     writer = csv.writer(file)
     writer.writerow(average_values)
 
+arduino_port.write(b'X')
 # Close the Arduino connection
 arduino_port.close()

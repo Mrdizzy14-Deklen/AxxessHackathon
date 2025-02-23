@@ -155,7 +155,7 @@ camera_running = False
 def start_camera_script():
     global camera_running
     if not camera_running:
-        subprocess.Popen(["python3", "second.py"])
+        subprocess.run(["python3", "second.py"])
         camera_running = True
 
 
@@ -340,7 +340,6 @@ while running:
                 exit_game()
         if event.type == pygame.MOUSEBUTTONDOWN:
             if start_button.collidepoint(event.pos):
-                water_tree()
                 start_button_clicked = not start_button_clicked
                 
         if event.type == pygame.QUIT:
