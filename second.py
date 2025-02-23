@@ -4,6 +4,10 @@ import time
 import math
 import csv
 import os
+import seaborn as sns
+import plotly.express as px
+import pandas as pd
+import matplotlib.pyplot as plt
 
 # Initialize MediaPipe Hand Detection
 mp_hands = mp.solutions.hands
@@ -36,37 +40,35 @@ if not cap.isOpened():
     print("Error: Could not open camera.")
     exit()
 
-logging = False  # Control variable for logging state
-
+logging = False
 print("Press 's' to start recording for 15 seconds...")
 
-# Display an initial frame to ensure the window opens
+# Display an initial frame
+timeout = 15  # Logging duration in seconds
 while True:
     ret, frame = cap.read()
     if not ret:
         print("Error: Could not read from camera.")
         break
-
+    
     cv2.putText(frame, "Press 's' to start, 'q' to quit", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
     cv2.imshow("Hand Tracking", frame)
 
     key = cv2.waitKey(1) & 0xFF
-    if key == ord('s'):  # Start logging when 's' is pressed
+    if key == ord('s'):
         logging = True
-        start_time = time.time()  # Get the start time
+        start_time = time.time()
         print("Logging started for 15 seconds...")
         break
-    elif key == ord('q'):  # Quit the program if 'q' is pressed
+    elif key == ord('q'):
         cap.release()
         cv2.destroyAllWindows()
-        print("Program terminated successfully.")
         exit()
 
 # Run loop for 15 seconds
 while logging:
-    elapsed_time = time.time() - start_time  # Time passed since start
-
-    if elapsed_time > 15:  # Stop after 15 seconds
+    elapsed_time = time.time() - start_time
+    if elapsed_time > timeout:
         logging = False
         print("15 seconds completed. Logging stopped.")
         break
@@ -75,13 +77,11 @@ while logging:
     if not success:
         break
 
-    # Convert to RGB for MediaPipe
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     results = hands.process(img_rgb)
 
     if results.multi_hand_landmarks:
         for hand_landmarks in results.multi_hand_landmarks:
-            # Get thumb tip and index finger tip coordinates
             thumb_tip = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP]
             index_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
 
@@ -89,71 +89,63 @@ while logging:
             thumb_x, thumb_y = int(thumb_tip.x * w), int(thumb_tip.y * h)
             index_x, index_y = int(index_tip.x * w), int(index_tip.y * h)
 
-            # Draw a line between the thumb and index finger
             cv2.line(img, (thumb_x, thumb_y), (index_x, index_y), (255, 0, 0), 3)
             cv2.circle(img, (thumb_x, thumb_y), 5, (0, 255, 0), cv2.FILLED)
             cv2.circle(img, (index_x, index_y), 5, (0, 255, 0), cv2.FILLED)
 
-            # Calculate distance
             distance = math.hypot(index_x - thumb_x, index_y - thumb_y)
+            angle = map_distance_to_angle(distance, 50, 200, 0, 180)
+            angle = max(0, min(180, angle))
 
-            # Map the distance to servo angle (0-180 degrees)
-            angle = map_distance_to_angle(distance, min_dist=50, max_dist=200, min_angle=0, max_angle=180)
-            angle = max(0, min(180, angle))  # Ensure angle is within bounds
-
-            # Display angle
             cv2.putText(img, f"Angle: {angle} deg", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
-            # Save the angle and timestamp to the CSV
             with open(csv_filename, "a", newline="") as file:
                 writer = csv.writer(file)
                 writer.writerow([time.strftime("%Y-%m-%d %H:%M:%S"), angle])
 
-            # Draw landmarks
             mp_draw.draw_landmarks(img, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
-    # Display the image
     cv2.imshow("Hand Tracking", img)
-
-    # Press 'q' anytime to quit early
-    key = cv2.waitKey(1) & 0xFF
-    if key == ord('q'):
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         logging = False
         print("Logging stopped manually.")
         break
 
-# Process daily average and update weekly/monthly logs
-daily_angles = []
-with open(csv_filename, "r") as file:
-    reader = csv.reader(file)
-    next(reader)  # Skip header
-    for row in reader:
-        daily_angles.append(int(row[1]))
-
-# Compute and store the daily average
-if daily_angles:
-    average_angle = sum(daily_angles) / len(daily_angles)
-
-    # Append to weekly_log (uses current week number)
-    current_week = time.strftime("%U")  # Week number (0-51)
+# Process daily average
+df = pd.read_csv(csv_filename)
+if not df.empty:
+    df["Angle"] = df["Angle"].astype(int)
+    average_angle = df["Angle"].mean()
+    current_week = time.strftime("%U")
+    current_month = time.strftime("%m")
+    
     with open(weekly_log_filename, "a", newline="") as file:
         writer = csv.writer(file)
         writer.writerow([current_week, average_angle])
 
-    # Append to monthly_log (uses current month number)
-    current_month = time.strftime("%m")  # Month number (01-12)
     with open(monthly_log_filename, "a", newline="") as file:
         writer = csv.writer(file)
         writer.writerow([current_month, average_angle])
 
-    # Reset daily log for the next day
-    with open(csv_filename, "w", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(["Timestamp", "Angle"])  # Reset the daily log header
-
     print(f"Daily average angle {average_angle} logged to weekly and monthly logs.")
 
-# Cleanup: Close OpenCV window and release resources
+# Generate heatmap
+df["Timestamp"] = pd.to_datetime(df["Timestamp"])
+df["Hour"] = df["Timestamp"].dt.hour
+df["Minute"] = df["Timestamp"].dt.minute
+df["Time Slot"] = df["Hour"].astype(str) + ":" + df["Minute"].astype(str)
+
+plt.figure(figsize=(10, 6))
+sns.heatmap(df.pivot_table(index="Time Slot", values="Angle", aggfunc='mean').fillna(0), cmap="coolwarm", annot=True)
+plt.title("Angle Distribution Over Time")
+plt.xlabel("Time Slot")
+plt.ylabel("Angle")
+plt.xticks(rotation=45)
+plt.show()
+
+fig = px.density_heatmap(df, x="Timestamp", y="Angle", title="Interactive Angle Distribution Heatmap", color_continuous_scale="Viridis")
+fig.show()
+
 cap.release()
 cv2.destroyAllWindows()
 print("Program terminated successfully.")
