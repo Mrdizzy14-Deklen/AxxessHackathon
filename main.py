@@ -218,15 +218,15 @@ def get_thirst():
                         reader = csv.reader(file)
                         week_avg = []
                         temp_avg = []
-                        for i in 7:
-                            next = next(reader)
-                            week_avg.append(next)
-                            if i <= 1:
-                               temp_avg.append(next)
+                        #for i in 7:
+                        #    next = next(reader)
+                        #    week_avg.append(next)
+                        #    if i <= 1:
+                        #       temp_avg.append(next)
                         
-                        if pd.mean(week_avg) < pd.mean(temp_avg):
-                            score += 10
-                            set_tree_image()
+                        #if pd.mean(week_avg) < pd.mean(temp_avg):
+                        #    score += 10
+                        #    set_tree_image()
             thirst_tree(get_day(boot_day) - get_day(last_boot))
             tests_done_today = 0
             increase_amount = abs(thirst - 50)/5
