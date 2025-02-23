@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import dash
 from dash import dcc, html
 import dash_bootstrap_components as dbc
+from matplotlib.colors import ListedColormap
 
 # Initialize MediaPipe Hand Detection
 mp_hands = mp.solutions.hands
@@ -132,21 +133,24 @@ if not df.empty:
 
     print(f"Daily average angle {average_angle} logged to weekly and monthly logs.")
 
-# Generate heatmap
+# Generate heatmap with custom color scale (shades of red and orange)
 df["Timestamp"] = pd.to_datetime(df["Timestamp"])
 df["Hour"] = df["Timestamp"].dt.hour
 df["Minute"] = df["Timestamp"].dt.minute
 df["Time Slot"] = df["Hour"].astype(str) + ":" + df["Minute"].astype(str)
 
+# Create a custom colormap (red to orange)
+custom_cmap = ListedColormap(["red", "orange"])
+
 plt.figure(figsize=(10, 6))
-sns.heatmap(df.pivot_table(index="Time Slot", values="Angle", aggfunc='mean').fillna(0), cmap="coolwarm", annot=True)
+sns.heatmap(df.pivot_table(index="Time Slot", values="Angle", aggfunc='mean').fillna(0), cmap=custom_cmap, annot=True)
 plt.title("Angle Distribution Over Time")
 plt.xlabel("Angle (in degrees)")
 plt.ylabel("Timestamp (24-hour clock)")
 plt.xticks(rotation=45)
 plt.show()
 
-fig = px.density_heatmap(df, x="Timestamp", y="Angle", title="Daily Log of Angle Distribution", color_continuous_scale="Viridis")
+fig = px.density_heatmap(df, x="Timestamp", y="Angle", title="Daily Log of Angle Distribution", color_continuous_scale="reds")
 fig.show()
 
 # --- Interactive Time Series with Annotations (Weekly Log) ---
