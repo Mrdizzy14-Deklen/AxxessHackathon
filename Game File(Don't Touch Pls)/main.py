@@ -3,6 +3,8 @@ import time
 import os
 import csv
 import datetime
+import pytz
+import random as rand
 
 pygame.init()
 
@@ -16,6 +18,7 @@ WHITE = (255, 255, 255)
 RED = (200, 50, 50)
 GREEN = (50, 200, 50)
 BLUE = (50, 50, 200)
+GRAY = (150, 150, 150)
 
 
 # Get the directory of the current script
@@ -27,39 +30,51 @@ tree_image = pygame.transform.scale(tree_image, (WIDTH/3, HEIGHT/3))
 
 # Tree properties
 thirst = 50
-thirst_increase_rate = 1  # How fast thirst increases
-last_thirst_update = time.time()
 
 # Backend data
-boot_day = datetime.datetime.now(datetime.timezone.utc).date()
+boot_day = datetime.datetime.now(pytz.timezone('America/Chicago')).date()
 last_boot = None
+daily_test_goal = 5
+tests_done_today = 0
 
 running = True
 
 def water_tree(amount=10):
     """Waters the tree 'int amount'"""
-    global thirst
-    thirst = max(0, thirst - amount)
-    print(f"Tree watered, thirst: {thirst}")
 
-def thirst_tree(days=1):
+    global thirst, tests_done_today, last_boot
+    thirst = max(0, thirst - amount)
+    tests_done_today += 1
+    last_boot = datetime.datetime.now(pytz.timezone('America/Chicago')).date()
+
+def thirst_tree(days=0):
+    """Add thirst to meter 'int days'"""
+
     global thirst
-    thirst += days * days
-    print("days: ", days)
-    pass
+    if thirst <= 50:
+        thirst = 50
+    thirst = min(100, thirst + (days) * 40 + rand.randint(-9, 9))
+    print("thirst: ", thirst)
 
 def get_thirst():
-    global boot_day, last_boot
+    """Set the thirst on start"""
+
+    global boot_day, last_boot, tests_done_today
     if last_boot:
-        thirst_tree(get_day(boot_day) - get_day(last_boot))
+        if get_day(boot_day) - get_day(last_boot) > 0:
+            thirst_tree(get_day(boot_day) - get_day(last_boot))
+            tests_done_today = 0
     
 def get_day(date=None):
+    """Converts yyyy-mm-dd to dd"""
+
     if date:
         return datetime.datetime.strptime(str(date), "%Y-%m-%d").day
     else:
         return None
 
 def save_game():
+    """Saves current game data"""
     
     # Get path
     game_folder = os.path.dirname(__file__)
@@ -68,7 +83,7 @@ def save_game():
     # Get data
     tree_data = [
         thirst, 
-        datetime.datetime.now(datetime.timezone.utc).date(),
+        datetime.datetime.now(pytz.timezone('America/Chicago')).date(),
         ]
 
     # Save to file
@@ -80,6 +95,7 @@ def save_game():
     print("==Game saved==")
 
 def load_game():
+    """Loads saved data"""
     
     # Get path
     game_folder = os.path.dirname(__file__)
@@ -98,6 +114,7 @@ def load_game():
         save_game()
 
 def exit_game():
+    """Quits game and saves data"""
 
     global running
     save_game()
@@ -105,7 +122,7 @@ def exit_game():
 
 def on_start():
     """Does all functions required on startup"""
-
+    
     load_game()
     get_thirst()
 
@@ -119,26 +136,19 @@ while running:
     # Handle Inputs
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                print("Spacebar pressed")
             if event.key == pygame.K_ESCAPE:
                 exit_game()
                 
         if event.type == pygame.QUIT:
             exit_game()
 
-    # Increase thirst over time
-    if time.time() - last_thirst_update > 1:
-        print(thirst)
-        thirst = min(100, thirst + thirst_increase_rate)
-        last_thirst_update = time.time()
-
     # Draw tree
     screen.blit(tree_image, (w/2 - w/6, h/2))
 
     # Draw thirst bar
-    pygame.draw.rect(screen, RED, (w/2 - 250, 350, 500, 20))
-    pygame.draw.rect(screen, BLUE, (w/2 - 250, 350, 500 * (1 - thirst/100), 20))
+    pygame.draw.rect(screen, GRAY, (w/2 - 250, 350, 500, 20))
+    pygame.draw.rect(screen, (200 - 2 * thirst, 200 - 2 * thirst, 255), (w/2 - 250, 350, 500 * (1 - thirst/100), 20))
+    pygame.draw.rect(screen, GREEN, (w/2 - 50, 354, 100, 12))
 
     pygame.display.update()
     pygame.time.delay(100)
