@@ -143,7 +143,7 @@ plt.ylabel("Angle")
 plt.xticks(rotation=45)
 plt.show()
 
-fig = px.density_heatmap(df, x="Timestamp", y="Angle", title="Interactive Angle Distribution Heatmap", color_continuous_scale="Viridis")
+fig = px.density_heatmap(df, x="Daily Timestamp [24 hour-clock]", y="Angle [in degrees]", title="Daily Log of Angle Distribution", color_continuous_scale="Viridis")
 fig.show()
 
 cap.release()
