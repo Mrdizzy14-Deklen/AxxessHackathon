@@ -130,28 +130,6 @@ show_ui = True
 
 running = True
 
-def adjust_saturation(image, saturation_factor):
-    # Convert image to HSV (Hue, Saturation, Value)
-    hsv_image = image.convert("HSV")
-    
-    # Split the channels (H, S, V)
-    h, s, v = hsv_image.split()
-
-    # Convert the Saturation channel to an array
-    s = np.array(s)
-    
-    # Adjust the saturation by scaling the values
-    s = np.clip(s * saturation_factor, 0, 255)  # Clamping to [0, 255]
-    
-    # Convert back to Image
-    s = Image.fromarray(s.astype(np.uint8))
-    
-    # Merge back the channels into an HSV image
-    hsv_image = Image.merge("HSV", (h, s, v))
-    
-    # Convert the image back to RGB
-    return hsv_image.convert("RGB")
-
 def get_sprite(atlas, category, index):
     if category in SPRITE_SHEETS:
         if 0 <= index < len(SPRITE_SHEETS[category]):
