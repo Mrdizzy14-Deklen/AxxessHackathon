@@ -8,12 +8,23 @@ import seaborn as sns
 import plotly.express as px
 import pandas as pd
 import matplotlib.pyplot as plt
+import datetime
 from matplotlib.colors import LinearSegmentedColormap
+from main import water_tree
 
 # Initialize MediaPipe Hand Detection
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(max_num_hands=1, min_detection_confidence=0.7)
 mp_draw = mp.solutions.drawing_utils
+
+img = None
+
+def get_camera_frame():
+    """Gives the camera frames to front end"""
+
+    global img
+    if img:
+        cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 # Function to map distance to angle (0-180 degrees)
 def map_distance_to_angle(distance, min_dist, max_dist, min_angle, max_angle):
@@ -114,6 +125,9 @@ while logging:
         print("Logging stopped manually.")
         break
 
+# Water tree after logging
+water_tree()
+
 # Process daily average
 df = pd.read_csv(csv_filename)
 if not df.empty:
@@ -124,7 +138,7 @@ if not df.empty:
     
     with open(weekly_log_filename, "a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([current_week, average_angle])
+        writer.writerow(average_angle)
 
     with open(monthly_log_filename, "a", newline="") as file:
         writer = csv.writer(file)
@@ -159,3 +173,16 @@ fig.show()
 cap.release()
 cv2.destroyAllWindows()
 print("Program terminated successfully.")
+
+# Calculate averages
+df = pd.read_csv("weekly_log.csv")
+average_values = df.mean()
+
+# Get path
+proj_folder = os.path.dirname(__file__)
+todays_file = os.path.join(proj_folder, "todays_data.csv")
+
+# Save to file
+with open(todays_file, "w", newline="") as file:
+    writer = csv.writer(file)
+    writer.writerow(average_values)

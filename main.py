@@ -5,9 +5,16 @@ import csv
 import datetime
 import pytz
 import random as rand
+import numpy as np
+import pandas as pd
+import subprocess
+import tkinter as tk
 
 pygame.init()
 pygame.font.init()
+clock = pygame.time.Clock()
+
+# Define fonts
 my_font = pygame.font.SysFont('Comic Sans MS', 30)
 secret_font = pygame.font.SysFont('Comic Sans MS', 15)
 
@@ -34,7 +41,6 @@ SPRITE_SHEETS = {
         {"x": 97, "y": 177, "width": 32, "height": 32},
         {"x": 137, "y": 145, "width": 48, "height": 64},
         {"x": 201, "y": 121, "width": 48, "height": 88}
-        
         ],
     "OAK_FULL": [
         {"x": 264, "y": 200, "width": 16, "height": 16},
@@ -51,7 +57,6 @@ SPRITE_SHEETS = {
         {"x": 97, "y": 177 - 112, "width": 32, "height": 32},
         {"x": 137, "y": 145 - 112, "width": 48, "height": 64},
         {"x": 201, "y": 121 - 112, "width": 48, "height": 88}
-        
         ],
     "BIRCH_FULL": [
         {"x": 264, "y": 200 - 112, "width": 16, "height": 8},
@@ -130,6 +135,26 @@ show_ui = True
 
 running = True
 
+def push_daily_data():
+
+    # Calculate average
+    df = pd.read_csv("todays_data.csv")
+    if df is not None:
+        average_values = df.mean()
+
+    # Get path
+    proj_folder = os.path.dirname(__file__)
+    weeks_file = os.path.join(proj_folder, "last_week_data.csv")
+
+    # Save to file
+    with open(weeks_file, "w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(average_values)
+
+def start_camera_script():
+    subprocess.Popen(["python3", "second.py"])
+
+
 def get_sprite(atlas, category, index):
     if category in SPRITE_SHEETS:
         if 0 <= index < len(SPRITE_SHEETS[category]):
@@ -173,9 +198,30 @@ def get_thirst():
     if last_boot:
         if get_day(boot_day) - get_day(last_boot) > 0:
             # If new day
+            if (thirst >= 40 and thirst <= 60) or tests_done_today == 5:
+                # Grow if within healthy range
+                # Get path
+                game_folder = os.path.dirname(__file__)
+                save_file = os.path.join(game_folder, "weeks_data.csv")
+
+                if os.path.exists(save_file):
+                    with open(save_file, "r") as file:
+                        reader = csv.reader(file)
+                        week_avg = []
+                        temp_avg = []
+                        for i in 7:
+                            next = next(reader)
+                            week_avg.append(next)
+                            if i <= 1:
+                               temp_avg.append(next)
+                        
+                        if pd.mean(week_avg) < pd.mean(temp_avg):
+                            score += 10
+                            set_tree_image()
             thirst_tree(get_day(boot_day) - get_day(last_boot))
             tests_done_today = 0
             increase_amount = abs(thirst - 50)/5
+            push_daily_data()
 
 def set_tree_image():
     global MAX_SCORE, score, tree_image, tree_atlas, img_width, img_height, img_sheet
@@ -213,9 +259,6 @@ def get_day(date=None):
     else:
         return None
 
-def set_score():
-    global score
-
 def save_game():
     """Saves current game data"""
     
@@ -229,6 +272,7 @@ def save_game():
         datetime.datetime.now(pytz.timezone('America/Chicago')).date(),
         img_sheet,
         tests_done_today,
+        score,
         ]
 
     # Save to file
@@ -251,11 +295,12 @@ def load_game():
             reader = csv.reader(file)
             next(reader)  # Skip header
             tree_data = next(reader)
-            global thirst, last_boot, img_sheet, tests_done_today
+            global thirst, last_boot, img_sheet, tests_done_today, score
             thirst = int(tree_data[0])
             last_boot = tree_data[1]
             img_sheet = tree_data[2]
             tests_done_today = int(tree_data[3])
+            score = int(tree_data[4])
         print("Game loaded:", tree_data)
     else:
         save_game()
@@ -289,14 +334,12 @@ while running:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 show_ui = not show_ui
-                score += 10
-                water_tree()
-                print(tests_done_today)
-                set_tree_image()
             if event.key == pygame.K_ESCAPE:
                 exit_game()
         if event.type == pygame.MOUSEBUTTONDOWN:
             if start_button.collidepoint(event.pos):
+                print("joe1")
+                water_tree()
                 start_button_clicked = not start_button_clicked
                 
         if event.type == pygame.QUIT:
@@ -370,8 +413,11 @@ while running:
 
         if start_button_clicked:
             start_button_clicked = not start_button_clicked
+            print("joe")
+            start_camera_script()
 
     pygame.display.update()
     pygame.time.delay(1)
+    clock.tick(60)
 
 pygame.quit()
