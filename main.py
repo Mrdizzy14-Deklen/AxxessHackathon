@@ -413,6 +413,7 @@ while running:
 
         if start_button_clicked:
             start_button_clicked = not start_button_clicked
+            water_tree()
             start_camera_script()
 
     pygame.display.update()
