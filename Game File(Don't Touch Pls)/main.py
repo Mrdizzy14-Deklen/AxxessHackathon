@@ -9,6 +9,7 @@ import random as rand
 pygame.init()
 pygame.font.init()
 my_font = pygame.font.SysFont('Comic Sans MS', 30)
+secret_font = pygame.font.SysFont('Comic Sans MS', 15)
 
 # Game settings
 WIDTH, HEIGHT = 750, 1000
@@ -23,6 +24,8 @@ BLUE = (50, 50, 200)
 GRAY = (50, 50, 50)
 
 # Sprite atlas
+game_folder = os.path.dirname(__file__)
+tree_atlas = pygame.image.load(os.path.join(game_folder, "tree_atlas_shadow.png"))
 SPRITE_SHEETS = {
     "OAK_BARE": [
         {"x": 9, "y": 89 + 112, "width": 16, "height": 8},
@@ -34,12 +37,12 @@ SPRITE_SHEETS = {
         
         ],
     "OAK_FULL": [
-        {"x": 264, "y": 200, "width": 16, "height": 8},
-        {"x": 296, "y": 192, "width": 16, "height": 16},
-        {"x": 327, "y": 80 + 104, "width": 16, "height": 24},
-        {"x": 352, "y": 176, "width": 32, "height": 32},
-        {"x": 392, "y": 144, "width": 48, "height": 64},
-        {"x": 452, "y": 120, "width": 56, "height": 88}
+        {"x": 264, "y": 200, "width": 16, "height": 16},
+        {"x": 296, "y": 192, "width": 16, "height": 24},
+        {"x": 327, "y": 80 + 104, "width": 16, "height": 32},
+        {"x": 352, "y": 176, "width": 32, "height": 40},
+        {"x": 392, "y": 144, "width": 48, "height": 72},
+        {"x": 452, "y": 120, "width": 56, "height": 96}
         ],
     "BIRCH_BARE": [
         {"x": 9, "y": 89, "width": 16, "height": 8},
@@ -63,12 +66,6 @@ SPRITE_SHEETS = {
 # Motivational text
 MOTIVATION = ["Healing takes time"]
 current_text = None
-
-# Get the directory of the current script
-game_folder = os.path.dirname(__file__)
-
-# Define image atlas
-tree_atlas = pygame.image.load(os.path.join(game_folder, "tree_atlas.png"))
 
 # Define background images
 wind_speed = 0.1
@@ -363,8 +360,13 @@ while running:
     screen.blit(background5, (0, 380))
 
     # Draw tree
-    screen.blit(tree_image, (w/2 - img_width * 5, h * 0.9 - img_height * 10))
+    screen.blit(tree_image, (w/2 - img_width * 5, h * 0.95 - img_height * 10))
     if show_ui:
+
+        text = secret_font.render("Press 'SPACE' to hide UI", True, (10, 10, 10))
+        text_width, text_height = text.get_size()
+        screen.blit(text, (w * 0.75 ,h * 0.98))
+
         if tests_done_today >= daily_test_goal:
             current_text = "Good work today, don't over do it"
 
