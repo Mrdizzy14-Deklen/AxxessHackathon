@@ -115,6 +115,10 @@ while logging:
         print("Logging stopped manually.")
         break
 
+# Close the video capture and window after 15 seconds
+cap.release()
+cv2.destroyAllWindows()
+
 # Process daily average
 df = pd.read_csv(csv_filename)
 if not df.empty:
@@ -233,9 +237,8 @@ app.layout = html.Div([
     ])
 ])
 
+# Run the app to display it in Chrome
 if __name__ == '__main__':
     app.run_server(debug=True)
 
-cap.release()
-cv2.destroyAllWindows()
 print("Program terminated successfully.")
