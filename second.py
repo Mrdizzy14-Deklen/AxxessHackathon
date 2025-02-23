@@ -6,7 +6,7 @@ import math
 import csv
 
 # Set up serial communication (update the COM port as per your system)
-arduino = serial.Serial('COM9', 9600)  # Replace 'COM9' with your Arduino's COM port
+arduino = serial.Serial('COM5', 9600)  # Replace 'COM9' with your Arduino's COM port
 time.sleep(2)  # Wait for Arduino to initialize
 
 # Initialize MediaPipe Hand Detection
