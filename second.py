@@ -8,10 +8,7 @@ import seaborn as sns
 import plotly.express as px
 import pandas as pd
 import matplotlib.pyplot as plt
-import dash
-from dash import dcc, html
-import dash_bootstrap_components as dbc
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import LinearSegmentedColormap
 
 # Initialize MediaPipe Hand Detection
 mp_hands = mp.solutions.hands
@@ -49,6 +46,8 @@ print("Press 's' to start recording for 15 seconds...")
 
 # Display an initial frame
 timeout = 15  # Logging duration in seconds
+start_time = None  # to start the 15-second timer
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -115,10 +114,6 @@ while logging:
         print("Logging stopped manually.")
         break
 
-# Close the video capture and window after 15 seconds
-cap.release()
-cv2.destroyAllWindows()
-
 # Process daily average
 df = pd.read_csv(csv_filename)
 if not df.empty:
@@ -137,14 +132,14 @@ if not df.empty:
 
     print(f"Daily average angle {average_angle} logged to weekly and monthly logs.")
 
-# Generate heatmap with custom color scale (shades of red and orange)
+# Generate heatmap with calmer gradient colors
 df["Timestamp"] = pd.to_datetime(df["Timestamp"])
 df["Hour"] = df["Timestamp"].dt.hour
 df["Minute"] = df["Timestamp"].dt.minute
 df["Time Slot"] = df["Hour"].astype(str) + ":" + df["Minute"].astype(str)
 
-# Create a custom colormap (red to orange)
-custom_cmap = ListedColormap(["red", "orange"])
+# Create a custom gradient colormap (calm blue to green gradient)
+custom_cmap = LinearSegmentedColormap.from_list("calm_gradient", ["#A8D8FF", "#A2E3B1"])
 
 plt.figure(figsize=(10, 6))
 sns.heatmap(df.pivot_table(index="Time Slot", values="Angle", aggfunc='mean').fillna(0), cmap=custom_cmap, annot=True)
@@ -154,91 +149,13 @@ plt.ylabel("Timestamp (24-hour clock)")
 plt.xticks(rotation=45)
 plt.show()
 
-fig = px.density_heatmap(df, x="Timestamp", y="Angle", title="Daily Log of Angle Distribution", color_continuous_scale="reds")
-fig.show()
-
-# --- Interactive Time Series with Annotations (Weekly Log) ---
-weekly_df = pd.read_csv(weekly_log_filename)
-
-# Example of annotations
-annotations = [
-    dict(
-        x=5,  # Example week number
-        y=80,  # Example average angle
-        xref="x", yref="y",
-        text="Significant change",  # Your annotation text
-        showarrow=True,
-        arrowhead=2,
-        ax=0, ay=-50
-    ),
-    dict(
-        x=10,
-        y=100,
-        xref="x", yref="y",
-        text="Key moment",  # Another annotation text
-        showarrow=True,
-        arrowhead=2,
-        ax=0, ay=-50
-    )
-]
-
-# Create the interactive time series plot
-fig = px.line(weekly_df, x='Week', y='Average Angle', title='Weekly Angle Trend')
-
-# Add annotations
-for annotation in annotations:
-    fig.add_annotation(annotation)
-
-# Show the plot
-fig.show()
-
-# --- Interactive Dashboard using Monthly Log (Dash by Plotly) ---
-# Load your monthly log data
+# Generate a scatter plot for monthly data
 monthly_df = pd.read_csv(monthly_log_filename)
 
-# Initialize Dash app
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+# Scatter plot to represent monthly data
+fig = px.scatter(monthly_df, x="Month", y="Average Angle", title="Monthly Average Angle", color="Average Angle", color_continuous_scale="Viridis")
+fig.show()
 
-# Line chart for average angle over the months
-line_chart = dcc.Graph(
-    id='line-chart',
-    figure=px.line(monthly_df, x='Month', y='Average Angle', title="Monthly Average Angle")
-)
-
-# Scatter plot for angle distribution over months
-scatter_plot = dcc.Graph(
-    id='scatter-plot',
-    figure=px.scatter(monthly_df, x='Month', y='Average Angle', title="Angle Distribution by Month")
-)
-
-# Histogram for angle frequency
-histogram = dcc.Graph(
-    id='histogram',
-    figure=px.histogram(monthly_df, x='Average Angle', title="Angle Frequency Distribution")
-)
-
-# Dropdown for month selection
-month_dropdown = dcc.Dropdown(
-    id='month-dropdown',
-    options=[{'label': month, 'value': month} for month in monthly_df['Month'].unique()],
-    value=monthly_df['Month'].iloc[0],
-    multi=False
-)
-
-# Layout for the app
-app.layout = html.Div([
-    dbc.Row([
-        dbc.Col(month_dropdown, width=4),
-        dbc.Col(line_chart, width=8)
-    ]),
-    dbc.Row([
-        dbc.Col(scatter_plot, width=6),
-        dbc.Col(histogram, width=6)
-    ])
-])
-
-# Run the app to display it in Chrome
-if __name__ == '__main__':
-    app.run_server(debug=True)
-
+cap.release()
+cv2.destroyAllWindows()
 print("Program terminated successfully.")
