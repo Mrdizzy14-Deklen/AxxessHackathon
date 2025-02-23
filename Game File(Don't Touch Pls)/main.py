@@ -16,11 +16,11 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Broken Branches")
 
 # Colors
-WHITE = (255, 255, 255)
+WHITE = (220, 220, 180)
 RED = (200, 50, 50)
-GREEN = (50, 200, 50)
+GREEN = (25, 255, 25)
 BLUE = (50, 50, 200)
-GRAY = (150, 150, 150)
+GRAY = (50, 50, 50)
 
 # Sprite atlas
 SPRITE_SHEETS = {
@@ -60,6 +60,9 @@ SPRITE_SHEETS = {
         ],
     }
 
+# Motivational text
+MOTIVATION = ["Healing takes time"]
+current_text = None
 
 # Get the directory of the current script
 game_folder = os.path.dirname(__file__)
@@ -103,8 +106,20 @@ tree_image = pygame.transform.scale(tree_image, (WIDTH/3, HEIGHT/3))
 img_width, img_height = tree_image.get_size()
 img_sheet = "OAK_FULL"
 
+# Add fill indicator
+indicator = pygame.image.load(os.path.join(game_folder, "indicator.png"))
+indicator = pygame.transform.scale(indicator, (80, 80))
+
+# Define buttons
+button_color = BLUE
+button_hover_color = RED
+start_button_clicked = False
+start_button = pygame.Rect(500, 750, 200, 50)
+start_button_text = my_font.render('Start', True, (255, 255, 255))
+
+
 # Tree properties
-thirst = 50
+thirst = 100
 MAX_SCORE = 60
 score = 0
 
@@ -113,9 +128,32 @@ boot_day = datetime.datetime.now(pytz.timezone('America/Chicago')).date()
 last_boot = None
 daily_test_goal = 5
 tests_done_today = 0
-increase_amount = 1
+increase_amount = 12
+show_ui = True
 
 running = True
+
+def adjust_saturation(image, saturation_factor):
+    # Convert image to HSV (Hue, Saturation, Value)
+    hsv_image = image.convert("HSV")
+    
+    # Split the channels (H, S, V)
+    h, s, v = hsv_image.split()
+
+    # Convert the Saturation channel to an array
+    s = np.array(s)
+    
+    # Adjust the saturation by scaling the values
+    s = np.clip(s * saturation_factor, 0, 255)  # Clamping to [0, 255]
+    
+    # Convert back to Image
+    s = Image.fromarray(s.astype(np.uint8))
+    
+    # Merge back the channels into an HSV image
+    hsv_image = Image.merge("HSV", (h, s, v))
+    
+    # Convert the image back to RGB
+    return hsv_image.convert("RGB")
 
 def get_sprite(atlas, category, index):
     if category in SPRITE_SHEETS:
@@ -134,13 +172,15 @@ def get_sprite_from_atlas(atlas, x, y, width, height):
     sprite.blit(atlas, (0, 0), (x, y, width, height))  # Copy from the atlas
     return sprite
 
-def water_tree(amount=10):
-    """Waters the tree 'int amount'"""
+def water_tree():
+    """Waters the tree"""
 
     global thirst, tests_done_today, last_boot
-    thirst = max(0, thirst - increase_amount - rand.randint(-9, 9))
+    thirst = max(0, thirst - increase_amount - rand.randint(-3, 3))
+    thirst = int(thirst)
     tests_done_today += 1
     last_boot = datetime.datetime.now(pytz.timezone('America/Chicago')).date()
+    save_game()
 
 def thirst_tree(days=0):
     """Add thirst to meter 'int days'"""
@@ -160,7 +200,7 @@ def get_thirst():
             # If new day
             thirst_tree(get_day(boot_day) - get_day(last_boot))
             tests_done_today = 0
-            increase_amount = (50 - thirst)/5
+            increase_amount = abs(thirst - 50)/5
 
 def set_tree_image():
     global MAX_SCORE, score, tree_image, tree_atlas, img_width, img_height, img_sheet
@@ -213,6 +253,7 @@ def save_game():
         thirst, 
         datetime.datetime.now(pytz.timezone('America/Chicago')).date(),
         img_sheet,
+        tests_done_today,
         ]
 
     # Save to file
@@ -235,10 +276,11 @@ def load_game():
             reader = csv.reader(file)
             next(reader)  # Skip header
             tree_data = next(reader)
-            global thirst, last_boot, img_sheet
+            global thirst, last_boot, img_sheet, tests_done_today
             thirst = int(tree_data[0])
             last_boot = tree_data[1]
             img_sheet = tree_data[2]
+            tests_done_today = int(tree_data[3])
         print("Game loaded:", tree_data)
     else:
         save_game()
@@ -252,7 +294,10 @@ def exit_game():
 
 def on_start():
     """Does all functions required on startup"""
-    
+
+    global current_text
+    current_text = MOTIVATION[rand.randint(0, len(MOTIVATION) - 1)]
+
     load_game()
     get_thirst()
     set_tree_image()
@@ -260,7 +305,7 @@ def on_start():
 on_start()
 
 while running:
-
+    mouse = pygame.mouse.get_pos() 
     screen.blit(background3, (0, 0))
     w, h = pygame.display.get_surface().get_size()
 
@@ -268,13 +313,21 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
+                show_ui = not show_ui
                 score += 10
+                water_tree()
+                print(tests_done_today)
                 set_tree_image()
             if event.key == pygame.K_ESCAPE:
                 exit_game()
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if start_button.collidepoint(event.pos):
+                start_button_clicked = not start_button_clicked
                 
         if event.type == pygame.QUIT:
             exit_game()
+
+
 
     # Handle background
     
@@ -311,15 +364,32 @@ while running:
 
     # Draw tree
     screen.blit(tree_image, (w/2 - img_width * 5, h * 0.9 - img_height * 10))
+    if show_ui:
+        if tests_done_today >= daily_test_goal:
+            current_text = "Good work today, don't over do it"
 
-    text = my_font.render('Some Text', True, (100, 0, 100))
-    text_width, text_height = text.get_size()
-    screen.blit(text, (w/2 - text_width/2,h * 0.93))
+        text = my_font.render(current_text, True, (10, 10, 10))
+        text_width, text_height = text.get_size()
+        pygame.draw.ellipse(screen, WHITE, (w/2 - text_width/2 - 10, h * 0.93 - 10, text_width + 20, text_height + 20))
+        screen.blit(text, (w/2 - text_width/2,h * 0.93))
 
-    # Draw thirst bar
-    pygame.draw.rect(screen, GRAY, (w/2 - 250, h * 0.9, 500, 20))
-    pygame.draw.rect(screen, (200 - 2 * thirst, 200 - 2 * thirst, 255), (w/2 - 250, h * 0.9, 500 * (1 - thirst/100), 20))
-    pygame.draw.rect(screen, GREEN, (w/2 - 50, h * 0.9 + 4, 100, 12))
+        # Draw thirst bar
+        pygame.draw.rect(screen, GRAY, (47, h * 0.7 - 253, 26, 506))
+        pygame.draw.rect(screen, (100 - thirst, 100 - thirst, 255), (50 , (h * 0.7 + 250) - (500 *(1 - thirst/100)), 20, 500 * (1 - thirst/100)))
+        pygame.draw.rect(screen, GREEN, (54, h * 0.7 - 50, 12, 100))
+
+        screen.blit(indicator, (-20, (h * 0.7 - 45 + 250) - (500 *(1 - thirst/100))))
+
+        if start_button.collidepoint(pygame.mouse.get_pos()):
+            pygame.draw.rect(screen, button_hover_color, start_button)
+        else:
+            pygame.draw.rect(screen, button_color, start_button)
+
+        text_rect = start_button_text.get_rect(center=start_button.center)
+        screen.blit(start_button_text, text_rect)
+
+        if start_button_clicked:
+            start_button_clicked = not start_button_clicked
 
     pygame.display.update()
     pygame.time.delay(1)
